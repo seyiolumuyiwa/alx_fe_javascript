@@ -98,13 +98,11 @@ async function createAddQuoteForm() {
     return;
   }
   const newQuote = { text: quoteText, category: quoteCategory };
-  
-  
   try {
     const response = await fetch("https://jsonplaceholder.typicode.com/posts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: quoteText, body: quoteCategory }) // Map to JSONPlaceholder format
+      body: JSON.stringify({ title: quoteText, body: quoteCategory })
     });
     const serverQuote = await response.json();
     quotes.push({ id: serverQuote.id, text: quoteText, category: quoteCategory });
@@ -144,7 +142,7 @@ function importFromJsonFile(event) {
     return;
   }
   const fileReader = new FileReader();
-  fileReader.onload = function(event) {
+  fileReader.onload = async function(event) {
     try {
       const importedQuotes = JSON.parse(event.target.result);
       if (!Array.isArray(importedQuotes) || !importedQuotes.every(q => q.text && q.category)) {
@@ -155,6 +153,21 @@ function importFromJsonFile(event) {
       saveQuotes();
       showNotification("Quotes imported successfully!");
       filterQuotes();
+      
+      for (const quote of importedQuotes) {
+        try {
+          const response = await fetch("https://jsonplaceholder.typicode.com/posts", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ title: quote.text, body: quote.category })
+          });
+          const serverQuote = await response.json();
+          quote.id = serverQuote.id;
+        } catch (error) {
+          console.error("Error syncing imported quote:", error);
+        }
+      }
+      saveQuotes();
     } catch (e) {
       alert("Error parsing JSON file. Please ensure it's valid JSON.");
     }
@@ -172,39 +185,48 @@ function showNotification(message) {
 }
 
 
-async function syncWithServer() {
+async function fetchQuotesFromServer() {
   try {
     const response = await fetch("https://jsonplaceholder.typicode.com/posts?_limit=10");
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
     const serverQuotes = await response.json();
-    let conflicts = [];
-    const newQuotes = serverQuotes.map(q => ({
+    return serverQuotes.map(q => ({
       id: q.id,
-      text: q.title, 
+      text: q.title,
       category: q.body 
     }));
-    
-    newQuotes.forEach(serverQuote => {
-      const localQuoteIndex = quotes.findIndex(q => q.id === serverQuote.id);
-      if (localQuoteIndex !== -1) {
-        if (quotes[localQuoteIndex].text !== serverQuote.text || quotes[localQuoteIndex].category !== serverQuote.category) {
-          conflicts.push({ local: quotes[localQuoteIndex], server: serverQuote });
-          quotes[localQuoteIndex] = serverQuote; 
-        }
-      } else {
-        quotes.push(serverQuote);
-      }
-    });
-    saveQuotes();
-    if (conflicts.length > 0) {
-      showNotification(`Synced with server. ${conflicts.length} conflict(s) resolved (server data used).`);
-      resolveConflictsBtn.style.display = "block";
-      sessionStorage.setItem("conflicts", JSON.stringify(conflicts));
-    } else {
-      showNotification("Synced with server successfully!");
-    }
   } catch (error) {
-    console.error("Error syncing with server:", error);
-    showNotification("Failed to sync with server.");
+    console.error("Error fetching quotes from server:", error);
+    showNotification("Failed to fetch quotes from server.");
+    return [];
+  }
+}
+
+
+async function syncWithServer() {
+  const serverQuotes = await fetchQuotesFromServer();
+  if (serverQuotes.length === 0) return;
+  let conflicts = [];
+  serverQuotes.forEach(serverQuote => {
+    const localQuoteIndex = quotes.findIndex(q => q.id === serverQuote.id);
+    if (localQuoteIndex !== -1) {
+      if (quotes[localQuoteIndex].text !== serverQuote.text || quotes[localQuoteIndex].category !== serverQuote.category) {
+        conflicts.push({ local: quotes[localQuoteIndex], server: serverQuote });
+        quotes[localQuoteIndex] = serverQuote; // Server precedence
+      }
+    } else {
+      quotes.push(serverQuote);
+    }
+  });
+  saveQuotes();
+  if (conflicts.length > 0) {
+    showNotification(`Synced with server. ${conflicts.length} conflict(s) resolved (server data used).`);
+    resolveConflictsBtn.style.display = "block";
+    sessionStorage.setItem("conflicts", JSON.stringify(conflicts));
+  } else {
+    showNotification("Synced with server successfully!");
   }
 }
 
@@ -252,4 +274,4 @@ resolveConflictsBtn.addEventListener("click", resolveConflictsManually);
 loadQuotesFromStorage();
 populateCategories();
 loadLastViewedQuote();
-syncWithServer(); // Initial sync
+syncWithServer(); 
