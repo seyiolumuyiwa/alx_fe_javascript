@@ -135,7 +135,7 @@ function exportToJsonFile() {
 }
 
 
-function importFromJsonFile(event) {
+async function importFromJsonFile(event) {
   const file = event.target.files[0];
   if (!file) {
     alert("No file selected.");
@@ -162,7 +162,7 @@ function importFromJsonFile(event) {
             body: JSON.stringify({ title: quote.text, body: quote.category })
           });
           const serverQuote = await response.json();
-          quote.id = serverQuote.id;
+          quote.id = serverQuote.id; 
         } catch (error) {
           console.error("Error syncing imported quote:", error);
         }
@@ -195,7 +195,7 @@ async function fetchQuotesFromServer() {
     return serverQuotes.map(q => ({
       id: q.id,
       text: q.title,
-      category: q.body 
+      category: q.body
     }));
   } catch (error) {
     console.error("Error fetching quotes from server:", error);
@@ -205,7 +205,7 @@ async function fetchQuotesFromServer() {
 }
 
 
-async function syncWithServer() {
+async function syncQuotes() {
   const serverQuotes = await fetchQuotesFromServer();
   if (serverQuotes.length === 0) return;
   let conflicts = [];
@@ -214,7 +214,8 @@ async function syncWithServer() {
     if (localQuoteIndex !== -1) {
       if (quotes[localQuoteIndex].text !== serverQuote.text || quotes[localQuoteIndex].category !== serverQuote.category) {
         conflicts.push({ local: quotes[localQuoteIndex], server: serverQuote });
-        quotes[localQuoteIndex] = serverQuote; // Server precedence
+        quotes[localQuoteIndex] = serverQuote; 
+
       }
     } else {
       quotes.push(serverQuote);
@@ -260,7 +261,7 @@ function resolveConflictsManually() {
 }
 
 
-setInterval(syncWithServer, 30000);
+setInterval(syncQuotes, 30000);
 
 
 newQuoteBtn.addEventListener("click", filterQuotes);
@@ -274,4 +275,4 @@ resolveConflictsBtn.addEventListener("click", resolveConflictsManually);
 loadQuotesFromStorage();
 populateCategories();
 loadLastViewedQuote();
-syncWithServer(); 
+syncQuotes(); 
