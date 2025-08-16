@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <input type="file" id="importFile" accept=".json" />
     <title>Dynamic Quote Generator</title>
   </head>
   <body>
@@ -14,8 +15,9 @@
     <input id="newQuoteText" type="text" placeholder="Enter a new quote" />
     <input id="newQuoteCategory" type="text" placeholder="Enter quote category" />
     <button onclick="addQuote()">Add Quote</button>
+    <button id="exportQuotes">Export Quotes</button>
   </div>
-  
+
     <script src="script.js"></script>
   </body>
   </html>
