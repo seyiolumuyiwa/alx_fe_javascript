@@ -227,7 +227,7 @@ async function syncQuotes() {
     resolveConflictsBtn.style.display = "block";
     sessionStorage.setItem("conflicts", JSON.stringify(conflicts));
   } else {
-    showNotification("Synced with server successfully!");
+    showNotification("Quotes synced with server!");
   }
 }
 
